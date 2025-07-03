@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Tron Wallet Approval DApp</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 400px; margin: auto;}
+    button { margin: 10px 0; padding: 10px 15px; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <h2>Tron Wallet Approval & Transfer</h2>
+  <button id="connectBtn">Connect TronLink</button><br>
+  <div id="walletInfo">Wallet: Not connected</div>
+  <button id="approveBtn" style="display:none;">Approve Access</button><br>
+  <button id="sendBtn" style="display:none;">Send 1 TRX</button>
+  <div id="status"></div>
+  <script>
+    const backend = "https://your-backend-url.onrender.com"; // Replace with your deployed backend
+    let wallet;
+
+    document.getElementById("connectBtn").onclick = async () => {
+      if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+        wallet = window.tronWeb.defaultAddress.base58;
+        document.getElementById("walletInfo").innerText = `Wallet: ${wallet}`;
+        document.getElementById("approveBtn").style.display = "inline";
+      } else {
+        alert("Please install TronLink wallet.");
+      }
+    };
+
+    document.getElementById("approveBtn").onclick = async () => {
+      const msg = `Approve access to MyDApp\nWallet: ${wallet}\nTimestamp: ${Date.now()}`;
+      const sig = await tronWeb.trx.sign(msg);
+      const resp = await fetch(`${backend}/login`, {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({wallet, msg, sig})
+      });
+      if (resp.ok) {
+        document.getElementById("status").innerText = "✅ Approved!";
+        document.getElementById("sendBtn").style.display = "inline";
+      } else {
+        document.getElementById("status").innerText = "❌ Approval failed";
+      }
+    };
+
+    document.getElementById("sendBtn").onclick = async () => {
+      const resp = await fetch(`${backend}/transfer`, {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({wallet})
+      });
+      const {tx} = await resp.json();
+      await tronWeb.trx.sendRawTransaction(tx);
+    };
+  </script>
+</body>
+</html>
