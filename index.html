@@ -2,9 +2,9 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Tron Wallet Approval DApp</title>
+  <title>Tron Approval DApp</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; max-width: 400px; margin: auto;}
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 400px; margin: auto; }
     button { margin: 10px 0; padding: 10px 15px; font-size: 16px; }
   </style>
 </head>
@@ -15,44 +15,64 @@
   <button id="approveBtn" style="display:none;">Approve Access</button><br>
   <button id="sendBtn" style="display:none;">Send 1 TRX</button>
   <div id="status"></div>
-  <script>
-    const backend = "andy18404.github.io/tron-frontend"; // Replace with your deployed backend
-    let wallet;
 
-    document.getElementById("connectBtn").onclick = async () => {
-      if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+  <script>
+    const backend = "https://andy18404.github.io/tron-frontend"; // ← Replace with your deployed backend URL
+    let wallet = null;
+
+    function waitForTronWeb(callback) {
+      if (window.tronWeb && window.tronWeb.ready) {
+        callback();
+      } else {
+        setTimeout(() => waitForTronWeb(callback), 250);
+      }
+    }
+
+    document.getElementById("connectBtn").onclick = () => {
+      waitForTronWeb(() => {
         wallet = window.tronWeb.defaultAddress.base58;
         document.getElementById("walletInfo").innerText = `Wallet: ${wallet}`;
         document.getElementById("approveBtn").style.display = "inline";
-      } else {
-        alert("Please install TronLink wallet.");
-      }
+      });
     };
 
     document.getElementById("approveBtn").onclick = async () => {
       const msg = `Approve access to MyDApp\nWallet: ${wallet}\nTimestamp: ${Date.now()}`;
-      const sig = await tronWeb.trx.sign(msg);
-      const resp = await fetch(`${backend}/login`, {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({wallet, msg, sig})
-      });
-      if (resp.ok) {
-        document.getElementById("status").innerText = "✅ Approved!";
-        document.getElementById("sendBtn").style.display = "inline";
-      } else {
-        document.getElementById("status").innerText = "❌ Approval failed";
+      try {
+        const sig = await tronWeb.trx.sign(msg);
+        const resp = await fetch(`${backend}/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ wallet, msg, sig })
+        });
+        if (resp.ok) {
+          document.getElementById("status").innerText = "✅ Approved!";
+          document.getElementById("sendBtn").style.display = "inline";
+        } else {
+          document.getElementById("status").innerText = "❌ Approval failed";
+        }
+      } catch (e) {
+        document.getElementById("status").innerText = "❌ Signature error: " + e.message;
       }
     };
 
     document.getElementById("sendBtn").onclick = async () => {
-      const resp = await fetch(`${backend}/transfer`, {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({wallet})
-      });
-      const {tx} = await resp.json();
-      await tronWeb.trx.sendRawTransaction(tx);
+      try {
+        const resp = await fetch(`${backend}/transfer`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ wallet })
+        });
+        const { tx } = await resp.json();
+        const result = await tronWeb.trx.sendRawTransaction(tx);
+        if (result.result) {
+          document.getElementById("status").innerText = "✅ Sent 1 TRX successfully!";
+        } else {
+          document.getElementById("status").innerText = "❌ Transaction failed";
+        }
+      } catch (e) {
+        document.getElementById("status").innerText = "❌ Transfer error: " + e.message;
+      }
     };
   </script>
 </body>
