@@ -17,7 +17,7 @@
   <div id="status"></div>
 
   <script>
-    const backend = "https://tron-backend-ksfz.onrender.com"; // ← Replace with your deployed backend URL
+    const backend = "https://tron-backend-ksfz.onrender.com"; // ✅ your backend
     let wallet = null;
 
     function waitForTronWeb(callback) {
@@ -39,20 +39,29 @@
     document.getElementById("approveBtn").onclick = async () => {
       const msg = `Approve access to MyDApp\nWallet: ${wallet}\nTimestamp: ${Date.now()}`;
       try {
+        if (!tronWeb || !tronWeb.ready) {
+          throw new Error("TronLink not detected or not ready");
+        }
+
         const sig = await tronWeb.trx.sign(msg);
+        if (!sig) throw new Error("Signature missing or canceled");
+
         const resp = await fetch(`${backend}/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ wallet, msg, sig })
         });
+
         if (resp.ok) {
           document.getElementById("status").innerText = "✅ Approved!";
           document.getElementById("sendBtn").style.display = "inline";
         } else {
-          document.getElementById("status").innerText = "❌ Approval failed";
+          const data = await resp.json();
+          document.getElementById("status").innerText = "❌ Approval failed: " + (data.error || "Unknown error");
         }
       } catch (e) {
         document.getElementById("status").innerText = "❌ Signature error: " + e.message;
+        console.error("Signature error:", e);
       }
     };
 
